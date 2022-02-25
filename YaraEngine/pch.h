@@ -21,7 +21,6 @@ typedef struct REGIONINFO
     DWORD dwProtect;
     DWORD dwState;
     DWORD dwType;
-    LPVOID pMzHeader;
 } RegionInfo, * PRegionInfo;
 
 /// <summary>

@@ -4,7 +4,10 @@ int main(int argc, char* argv[])
 {
 	printf("~ YaraEngine ~\n\n");
 
+	// Path to yara file
 	std::string path;
+
+	// Pid to scan
 	DWORD dwPid;
 
 	if (argc != 3)
@@ -21,8 +24,15 @@ int main(int argc, char* argv[])
 	printf("\\_ Rule Path: %s\n", path.c_str());
 	printf("\\_ Process ID: %ld\n", dwPid);
 
+	// Initialise yara
 	Yara::Manager yara = Yara::Manager();
 
+	if (yara.bSetup == FALSE)
+	{
+		return -1;
+	}
+
+	// Add the rules to yara
 	if (yara.AddRuleFromFile(path) == FALSE)
 	{
 		printf("[!] Failed to load %s\n", path.c_str());
@@ -31,6 +41,7 @@ int main(int argc, char* argv[])
 
 	printf("\\_ Loaded %s\n", path.c_str());
 
+	// Scan all the memory regions of the process with the yara rules
 	std::vector<YaraInfo> matches = yara.ScanProcessMemory(dwPid);
 
 	if (matches.size() == 0)
@@ -38,6 +49,8 @@ int main(int argc, char* argv[])
 		printf("[!] No Yara matches!\n");
 		return -1;
 	}
+
+	// Display it all
 
 	printf("\n");
 

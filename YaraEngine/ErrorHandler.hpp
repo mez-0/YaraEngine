@@ -3,6 +3,9 @@
 
 #include "pch.h"
 
+/// <summary>
+/// Print some errors
+/// </summary>
 namespace ErrorHandler
 {
     class Show

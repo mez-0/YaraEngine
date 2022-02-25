@@ -3,13 +3,27 @@
 
 #include "pch.h"
 
+/// <summary>
+/// Yara Manager Namespace
+/// </summary>
 namespace Yara
 {
+	/// <summary>
+	/// Class to handle it all!
+	/// </summary>
 	class Manager
 	{
 	public:
+
+		// Set this to TRUE if everything is set up
+		BOOL bSetup = FALSE;
+
+		/// <summary>
+		/// Constructor: Initialise Yara and create the compiler
+		/// </summary>
 		Manager()
 		{
+			// Do the init
 			int init = yr_initialize();
 			if (init != ERROR_SUCCESS)
 			{
@@ -17,28 +31,34 @@ namespace Yara
 				return;
 			}
 
+			// Create the compiler
 			if (CreateCompiler())
 			{
-				success = TRUE;
+				bSetup = TRUE;
 			}
 			else
 			{
-				success = FALSE;
+				bSetup = FALSE;
 			}
 		}
 
+		/// <summary>
+		/// Destructor: Kill it all!
+		/// </summary>
 		~Manager()
 		{
 			if (compiler != NULL)
 			{
+				// Kill the compiler
 				yr_compiler_destroy(compiler);
 			}
 			if (scanner != NULL)
 			{
+				// Kill the scanner
 				yr_scanner_destroy(scanner);
 			}
 
-			// must be called when you are finished using the library.
+			// Kill yara
 			int finalise = yr_finalize();
 			if (finalise != ERROR_SUCCESS)
 			{
@@ -47,37 +67,50 @@ namespace Yara
 			}
 		}
 
-		BOOL AddRuleFromFile(std::string file_name)
+		/// <summary>
+		/// Add a .yar file to the compiler
+		/// </summary>
+		/// <param name="rule_path">Path to the .yar file</param>
+		/// <returns>Returns TRUE if successful, otherwise FALSE.</returns>
+		BOOL AddRuleFromFile(std::string rule_path)
 		{
+			// Read the rule
 			FILE* rule_file = NULL;
 
-			int result = fopen_s(&rule_file, file_name.c_str(), "r");
+			int result = fopen_s(&rule_file, rule_path.c_str(), "r");
 			if (result != ERROR_SUCCESS)
 			{
-				printf("Failed to open %s: %s\n", file_name.c_str(), GetErrorMsg(result).c_str());
+				printf("Failed to open %s: %s\n", rule_path.c_str(), GetErrorMsg(result).c_str());
 				return FALSE;
 			}
 
-			result = yr_compiler_add_file(compiler, rule_file, NULL, file_name.c_str());
+			// Add the rule to the compiler
+			result = yr_compiler_add_file(compiler, rule_file, NULL, rule_path.c_str());
 			if (result != ERROR_SUCCESS)
 			{
-				printf("Failed to add rules from %s: %s\n", file_name.c_str(), GetErrorMsg(result).c_str());
+				printf("Failed to add rules from %s: %s\n", rule_path.c_str(), GetErrorMsg(result).c_str());
 				return FALSE;
 			}
 
+			// Check the rule was added
 			result = yr_compiler_get_rules(compiler, &rules);
 
 			if (result != ERROR_SUCCESS)
 			{
-				printf("Failed to get rules from %s: %s\n", file_name.c_str(), GetErrorMsg(result).c_str());
+				printf("Failed to get rules from %s: %s\n", rule_path.c_str(), GetErrorMsg(result).c_str());
 				return FALSE;
 			}
 
 			return TRUE;
 		}
 
+		/// <summary>
+		/// Create the scanner (wraps yr_scanner_create)
+		/// </summary>
+		/// <returns>Returns TRUE if successful, otherwise FALSE.</returns>
 		BOOL CreateScanner()
 		{
+			// Actually create it
 			int result = yr_scanner_create(rules, &scanner);
 			if (result == ERROR_SUCCESS)
 			{
@@ -90,8 +123,14 @@ namespace Yara
 			}
 		}
 
+		/// <summary>
+		/// Scan the memory of the process and return a vector of YaraInfo
+		/// </summary>
+		/// <param name="dwPid">PID to scan</param>
+		/// <returns>A vector of YaraInfo (vector of rules and the infected region struct)</returns>
 		std::vector<YaraInfo> ScanProcessMemory(DWORD dwPid)
 		{
+			// Get a handle with PROCESS_QUERY_INFORMATION | PROCESS_VM_READ
 			RAII::Handle hProcess = OpenProcess(PROCESS_READ_FLAGS, FALSE, dwPid);
 
 			std::vector<YaraInfo> allYaraInfo;
@@ -101,15 +140,17 @@ namespace Yara
 				return allYaraInfo;
 			}
 
+			// Read all the regions
 			std::vector<RegionInfo> regions = GetProcessRegions(hProcess.Get());
-
 			if (regions.size() == 0)
 			{
 				return allYaraInfo;
 			}
 
+			// Loop over the regions
 			for (RegionInfo& regionInfo : regions)
 			{
+				// Read that tegion into a buffer
 				std::vector<std::byte> region = ReadRegionToBuffer(regionInfo, hProcess.Get());
 				if (region.empty()) continue;
 
@@ -121,8 +162,10 @@ namespace Yara
 
 				YaraInfo yaraInfo;
 
+				// Scan it!
 				int result = yr_rules_scan_mem(rules, buffer, buffer_size, SCAN_FLAGS_NO_TRYCATCH, capture_matches, &yaraInfo, 0);
 
+				// If it matched, add it.
 				if (yaraInfo.matched_rules.size() > 0)
 				{
 					yaraInfo.infectedRegion = regionInfo;
@@ -132,26 +175,20 @@ namespace Yara
 			return allYaraInfo;
 		}
 
-		void LogRuleMatches(PProcessInfo processInfo)
-		{
-			printf("  |> Yara Rules Matched in the following regions:\n");
-
-			for (YaraInfo& yaraInfo : processInfo->allYaraInfo)
-			{
-				for (std::string& rule_name : yaraInfo.matched_rules)
-				{
-					printf("    - %s: 0x%p (%ld)\n", rule_name.c_str(), yaraInfo.infectedRegion.pBase, yaraInfo.infectedRegion.dwProtect);
-				}
-			}
-
-		}
-
 	private:
+		// Compiler object
 		YR_COMPILER* compiler = NULL;
+		
+		// Rules object
 		YR_RULES* rules = NULL;
-		YR_SCANNER* scanner = NULL;
-		BOOL success = FALSE;
 
+		// Scann object
+		YR_SCANNER* scanner = NULL;
+
+		/// <summary>
+		/// Wrapper for yr_compiler_create
+		/// </summary>
+		/// <returns>Returns TRUE if successful, otherwise FALSE.</returns>
 		BOOL CreateCompiler()
 		{
 			int create = yr_compiler_create(&compiler);
@@ -166,6 +203,11 @@ namespace Yara
 			}
 		}
 
+		/// <summary>
+		/// Switch on the known error codes
+		/// </summary>
+		/// <param name="err">The error as an int</param>
+		/// <returns>A String for the int error</returns>
 		std::string GetErrorMsg(int err)
 		{
 			std::string msg;
@@ -206,7 +248,10 @@ namespace Yara
 			}
 			return msg;
 		}
-
+		
+		/// <summary>
+		/// The callback function to identify the matched rules
+		/// </summary>
 		static int capture_matches(YR_SCAN_CONTEXT* context, int message, void* message_data, void* user_data)
 		{
 			PYaraInfo yaraInfo = static_cast<PYaraInfo>(user_data);
@@ -229,6 +274,12 @@ namespace Yara
 			return CALLBACK_CONTINUE;
 		}
 
+		/// <summary>
+		/// Read a region into a vector of bytes
+		/// </summary>
+		/// <param name="regionInfo">ThE RegionInfo struct to read th base address and size of the region</param>
+		/// <param name="hProcess">Handle to the process</param>
+		/// <returns>A vector of bytes for that region</returns>
 		std::vector<std::byte> ReadRegionToBuffer(RegionInfo regionInfo, HANDLE hProcess)
 		{
 			if (regionInfo.dwProtect == PAGE_NOACCESS) return std::vector<std::byte>{};
@@ -244,6 +295,11 @@ namespace Yara
 			return buffer;
 		}
 
+		/// <summary>
+		/// Use VirtualQueryEx to pull out each region as a RegionInfo Struct
+		/// </summary>
+		/// <param name="hProcess">Handle to the process</param>
+		/// <returns>A vector of RegionInfo which represents the data of the region</returns>
 		std::vector<RegionInfo> GetProcessRegions(HANDLE hProcess)
 		{
 			std::vector<RegionInfo> regions;
@@ -253,17 +309,15 @@ namespace Yara
 			while (VirtualQueryEx(hProcess, offset, &mbi, sizeof(mbi)))
 			{
 				offset = (LPVOID)((DWORD_PTR)mbi.BaseAddress + mbi.RegionSize);
-				if (mbi.State == MEM_COMMIT || mbi.State == MEM_FREE)
-				{
-					RegionInfo regionInfo;
-					regionInfo.pBase = mbi.BaseAddress;
-					regionInfo.pAllocation = mbi.AllocationBase;
-					regionInfo.dwProtect = mbi.Protect;
-					regionInfo.dwRegion = mbi.RegionSize;
-					regionInfo.dwState = mbi.State;
-					regionInfo.dwType = mbi.Type;
-					regions.push_back(regionInfo);
-				}
+
+				RegionInfo regionInfo;
+				regionInfo.pBase = mbi.BaseAddress;
+				regionInfo.pAllocation = mbi.AllocationBase;
+				regionInfo.dwProtect = mbi.Protect;
+				regionInfo.dwRegion = mbi.RegionSize;
+				regionInfo.dwState = mbi.State;
+				regionInfo.dwType = mbi.Type;
+				regions.push_back(regionInfo);
 			}
 			if (regions.size() == 0)
 			{
