@@ -67,7 +67,7 @@ namespace Yara
 			}
 		}
 
-		BOOL LoadRule(std::string path)
+		BOOL LoadRule(std::string path, BOOL bVerbose)
 		{
 			std::string rule = ReadFileToStringA(path);
 
@@ -80,7 +80,7 @@ namespace Yara
 			int result = yr_compiler_add_string(compiler, rule.c_str(), nullptr);
 			if (result != ERROR_SUCCESS)
 			{
-				printf("Failed to add rules from %s: %s\n", path.c_str(), GetErrorMsg(result).c_str());
+				if(bVerbose) printf("Failed to add rules from %s: %s\n", path.c_str(), GetErrorMsg(result).c_str());
 				return FALSE;
 			}
 			else
@@ -130,7 +130,7 @@ namespace Yara
 		/// </summary>
 		/// <param name="rule_directory">The directory to load</param>
 		/// <returns>Return TRUE/FALSE depending on success</returns>
-		BOOL AddRulesFromDirectory(std::string rule_directory)
+		BOOL AddRulesFromDirectory(std::string rule_directory, BOOL bVerbose)
 		{
 			int file_count = 0;
 			int succes_count = 0;
@@ -141,7 +141,7 @@ namespace Yara
 				{
 					continue;
 				}
-				if (LoadRule(dirEntry.path().string()))
+				if (LoadRule(dirEntry.path().string(), bVerbose))
 				{
 					succes_count++;
 				}

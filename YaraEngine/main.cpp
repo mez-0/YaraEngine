@@ -8,22 +8,41 @@ int main(int argc, char* argv[])
 	std::string path;
 
 	// Pid to scan
-	DWORD dwPid;
+	DWORD dwPid = 0;
 
-	if (argc != 3)
+	// verbosity
+	BOOL bVerbose = FALSE;
+
+	if (argc < 3)
 	{
-		printf("PS> YaraEngine.exe <path to rule> <pid>\n");
+		printf("PS> YaraEngine.exe <path to rule> <pid> [-v]\n");
 		return -1;
 	}
-	else
+	else if (argc == 3)
 	{
 		path = argv[1];
 		dwPid = atoi(argv[2]);
+	}
+	else if(argc == 4)
+	{
+		path = argv[1];
+		dwPid = atoi(argv[2]);
+		bVerbose = TRUE;
 	}
 
 	printf("\\_ Config:\n");
 	printf("  | Rule Path: %s\n", path.c_str());
 	printf("  | Process ID: %ld\n", dwPid);
+
+	if (bVerbose)
+	{
+		printf("  | Verbose: TRUE\n");
+	}
+	else
+	{
+		printf("  | Verbose: FALSE\n");
+	}
+
 	printf("\n");
 
 	// Initialise yara
@@ -45,7 +64,7 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		if (yara.AddRulesFromDirectory(path) == FALSE)
+		if (yara.AddRulesFromDirectory(path, bVerbose) == FALSE)
 		{
 			printf("[!] Failed to load directory: %s\n", path.c_str());
 			return -1;
