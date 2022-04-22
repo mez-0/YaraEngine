@@ -67,41 +67,102 @@ namespace Yara
 			}
 		}
 
+		BOOL LoadRule(std::string path)
+		{
+			std::string rule = ReadFileToStringA(path);
+
+			if (rule.empty())
+			{
+				return TRUE;
+			}
+
+			// Add the rule to the compiler
+			int result = yr_compiler_add_string(compiler, rule.c_str(), nullptr);
+			if (result != ERROR_SUCCESS)
+			{
+				printf("Failed to add rules from %s: %s\n", path.c_str(), GetErrorMsg(result).c_str());
+				return FALSE;
+			}
+			else
+			{
+				return TRUE;
+			}
+		}
+
 		/// <summary>
 		/// Add a .yar file to the compiler
 		/// </summary>
 		/// <param name="rule_path">Path to the .yar file</param>
 		/// <returns>Returns TRUE if successful, otherwise FALSE.</returns>
-		BOOL AddRuleFromFile(std::string rule_path)
+		BOOL AddRuleFromFile(std::string file_name)
 		{
-			// Read the rule
 			FILE* rule_file = NULL;
 
-			int result = fopen_s(&rule_file, rule_path.c_str(), "r");
+			int result = fopen_s(&rule_file, file_name.c_str(), "r");
 			if (result != ERROR_SUCCESS)
 			{
-				printf("Failed to open %s: %s\n", rule_path.c_str(), GetErrorMsg(result).c_str());
+				printf("Failed to open %s: %s\n", file_name.c_str(), GetErrorMsg(result).c_str());
 				return FALSE;
 			}
 
-			// Add the rule to the compiler
-			result = yr_compiler_add_file(compiler, rule_file, NULL, rule_path.c_str());
+			result = yr_compiler_add_file(compiler, rule_file, NULL, file_name.c_str());
 			if (result != ERROR_SUCCESS)
 			{
-				printf("Failed to add rules from %s: %s\n", rule_path.c_str(), GetErrorMsg(result).c_str());
+				printf("Failed to add rules from %s: %s\n", file_name.c_str(), GetErrorMsg(result).c_str());
 				return FALSE;
 			}
 
-			// Check the rule was added
 			result = yr_compiler_get_rules(compiler, &rules);
 
 			if (result != ERROR_SUCCESS)
 			{
-				printf("Failed to get rules from %s: %s\n", rule_path.c_str(), GetErrorMsg(result).c_str());
+				printf("Failed to get rules from %s: %s\n", file_name.c_str(), GetErrorMsg(result).c_str());
 				return FALSE;
 			}
 
+			printf("\\_ Added %s!\n", file_name.c_str());
+
 			return TRUE;
+		}
+
+		/// <summary>
+		/// From a directory, add everything
+		/// </summary>
+		/// <param name="rule_directory">The directory to load</param>
+		/// <returns>Return TRUE/FALSE depending on success</returns>
+		BOOL AddRulesFromDirectory(std::string rule_directory)
+		{
+			int file_count = 0;
+			int succes_count = 0;
+
+			for (const auto& dirEntry : std::filesystem::recursive_directory_iterator(rule_directory))
+			{
+				if (".yar" != dirEntry.path().extension())
+				{
+					continue;
+				}
+				if (LoadRule(dirEntry.path().string()))
+				{
+					succes_count++;
+				}
+				file_count++;
+			}
+
+			printf("\\_ Added %ld/%ld rules!\n", succes_count, file_count);
+
+			// Check the rule was added
+			int result = yr_compiler_get_rules(compiler, &rules);
+
+			if (result != ERROR_SUCCESS)
+			{
+				printf("Failed to get rules from %s: %s\n", rule_directory.c_str(), GetErrorMsg(result).c_str());
+				return FALSE;
+			}
+			else
+			{
+				printf("\\_ Successfully verified rules!\n");
+				return TRUE;
+			}
 		}
 
 		/// <summary>

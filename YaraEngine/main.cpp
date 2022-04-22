@@ -21,8 +21,10 @@ int main(int argc, char* argv[])
 		dwPid = atoi(argv[2]);
 	}
 
-	printf("\\_ Rule Path: %s\n", path.c_str());
-	printf("\\_ Process ID: %ld\n", dwPid);
+	printf("\\_ Config:\n");
+	printf("  | Rule Path: %s\n", path.c_str());
+	printf("  | Process ID: %ld\n", dwPid);
+	printf("\n");
 
 	// Initialise yara
 	Yara::Manager yara = Yara::Manager();
@@ -33,10 +35,21 @@ int main(int argc, char* argv[])
 	}
 
 	// Add the rules to yara
-	if (yara.AddRuleFromFile(path) == FALSE)
+	if (CheckIfFile(path))
 	{
-		printf("[!] Failed to load %s\n", path.c_str());
-		return -1;
+		if (yara.AddRuleFromFile(path) == FALSE)
+		{
+			printf("[!] Failed to load file: %s\n", path.c_str());
+			return -1;
+		}
+	}
+	else
+	{
+		if (yara.AddRulesFromDirectory(path) == FALSE)
+		{
+			printf("[!] Failed to load directory: %s\n", path.c_str());
+			return -1;
+		}
 	}
 
 	printf("\\_ Loaded %s\n", path.c_str());

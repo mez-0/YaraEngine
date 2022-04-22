@@ -93,4 +93,26 @@ inline BOOL VectorContainsStringA(std::vector<std::string> haystack, std::string
 	return FALSE;
 }
 
+inline std::string ReadFileToStringA(std::string path)
+{
+	std::ifstream t(path);
+	std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
+	return str;
+}
+
+inline BOOL CheckIfFile(std::string path)
+{
+	std::filesystem::path fs(path);
+	std::error_code e;
+
+	if (std::filesystem::is_regular_file(path, e))
+	{
+		return TRUE;
+	}
+	else
+	{
+		return FALSE;
+	}
+}
+
 #endif

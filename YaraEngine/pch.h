@@ -4,9 +4,12 @@
 #include <Windows.h>
 #include <yara.h>
 #include <string>
+#include <fstream>
+#include <streambuf>
 #include <vector>
 #include <system_error>
 #include <algorithm>
+#include <filesystem>
 
 #define PROCESS_READ_FLAGS PROCESS_QUERY_INFORMATION | PROCESS_VM_READ
 
