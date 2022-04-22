@@ -198,15 +198,24 @@ namespace Yara
 
 			if (hProcess.Empty())
 			{
+				printf("[!] Failed to get handle to %ld: %ld\n", dwPid, GetLastError());
 				return allYaraInfo;
 			}
+
+			printf("\\_ Handle to %ld: 0x%p\n", dwPid, hProcess.Get());
+
+			printf("\\_ Getting all regions...\n");
 
 			// Read all the regions
 			std::vector<RegionInfo> regions = GetProcessRegions(hProcess.Get());
 			if (regions.size() == 0)
 			{
+				printf("[!] 0 Regions obtained!\n");
 				return allYaraInfo;
 			}
+			printf("\\_ Regions obtained: %I64u\n", regions.size());
+
+			printf("\\_ Running rules against all %I64u regions...\n", regions.size());
 
 			// Loop over the regions
 			for (RegionInfo& regionInfo : regions)
@@ -327,6 +336,7 @@ namespace Yara
 					std::string rule_name = rule->identifier;
 					if (VectorContainsStringA(yaraInfo->matched_rules, rule_name) == FALSE)
 					{
+						printf("[MATCH] => %s\n", rule_name.c_str());
 						yaraInfo->matched_rules.push_back(rule_name);
 					}
 				}

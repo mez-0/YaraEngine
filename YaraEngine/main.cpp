@@ -72,6 +72,7 @@ int main(int argc, char* argv[])
 	}
 
 	printf("\\_ Loaded %s\n", path.c_str());
+	printf("\n\\_ Starting Engine!\n\n");
 
 	// Scan all the memory regions of the process with the yara rules
 	std::vector<YaraInfo> matches = yara.ScanProcessMemory(dwPid);
